@@ -1,0 +1,3 @@
+ON = (trigger -> OFF),
+OFF = (trigger -> ON),
+BISTABLE = ON.

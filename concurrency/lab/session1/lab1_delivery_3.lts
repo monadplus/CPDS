@@ -1,0 +1,6 @@
+CLIENT = (call -> WAIT),
+  WAIT = (answer -> continue -> CLIENT | timeout -> CLIENT).
+SERVER = (request -> service -> WAIT),
+  WAIT = (reply -> SERVER | timeout -> SERVER).
+
+|| CLIENT_SERVER = (CLIENT || SERVER)/{call/request, answer/reply}.

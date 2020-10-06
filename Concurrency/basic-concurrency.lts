@@ -1,5 +1,0 @@
-COOK = (put -> heat -> time -> cook -> take -> COOK).
-HEAT = (put -> heat -> take -> HEAT).
-TIME = (put -> time -> take -> TIME).
-
-||MICROWAVE = (COOK||HEAT||TIME).

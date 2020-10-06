@@ -1,0 +1,48 @@
+/* Homework: LTS & FSP
+*
+* Name: Arnau
+* Surname: Abella Gassol
+*
+*/
+
+/* Museum */
+
+const N = 5
+
+EAST = (arrive -> EAST).
+WEST = (leave -> WEST).
+DIRECTOR = (open -> close -> DIRECTOR).
+CONTROL = CLOSED[0],
+  CLOSED[i:0..N] =
+    ( when (i==0) open -> OPENED[0]
+    | when (i>0) leave -> CLOSED[i-1]),
+  OPENED[i:0..N] =
+    ( close -> CLOSED[i]
+    | when (i<N) arrive -> OPENED[i+1]
+    | when (i>0) leave -> OPENED[i-1]).
+|| MUSEUM = (EAST || WEST || DIRECTOR || CONTROL).
+
+/* Time-Out Client Server */
+
+/* a */
+
+CLIENT = (call -> WAIT),
+  WAIT = (answer -> continue -> CLIENT | timeout -> CLIENT).
+SERVER = (request -> service -> reply -> SERVER).
+
+|| CLIENT_SERVER = (CLIENT || SERVER)/{call/request, answer/reply}.
+
+/* b */
+
+When the client hits the timeout, the server blocks waiting for the client ack.
+Then the client blocks on the request.
+The result is a blocked system, a deadlock.
+
+/* c */
+
+CLIENT = (call -> WAIT),
+  WAIT = (answer -> continue -> CLIENT | timeout -> CLIENT).
+SERVER = (request -> service -> WAIT),
+  WAIT = (reply -> SERVER | timeout -> SERVER).
+
+|| CLIENT_SERVER = (CLIENT || SERVER)/{call/request, answer/reply}.
