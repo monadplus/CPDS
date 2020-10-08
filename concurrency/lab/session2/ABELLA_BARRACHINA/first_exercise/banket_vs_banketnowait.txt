@@ -1,0 +1,7 @@
+Banket vs BanketNoWait
+
+The Banket implementation uses Java's thread's capabilities.
+Under the hood, it relies on some mechanism to prevent wasting cpu time.
+Probably through hardware interruption or a clever run-time system.
+
+This is a better implementation, as blocked processes/threads can be properly scheduled by the operative system giving the round-robin time slot to a non-blocked process/thread. The other implementation is not recommended.
