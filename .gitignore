@@ -1,2 +1,4 @@
 ltsatool
 *.zip
+# Erlang Virtual Machine
+*.beam
