@@ -1,0 +1,19 @@
+CARPARKCONTROL(N=4) = SPACES[N],
+SPACES[i:0..N] = 
+  ( when(i > 0) arrive -> SPACE[i-1]
+  | when(i < N) depart -> SPACE[i+1]
+  ).
+ARRIVALS = (arrive -> ARRIVALS).
+DEPARTURES = (depart -> DEPARTURES).
+
+|| CARPARK = (ARRIVALS||CARPARKCONTROL(4)||DEPARTURES).
+
+// The error state from OVERFLOW[0] -> depart is still present 
+// because if you draw the OVERFLOW draw the transition does not exists.
+property OVERFLOW(N=4) = OVERFLOW[0],
+OVERFLOW[i:0..N] = 
+  ( when (i < N) arrive -> OVERFLOW[i+1]
+  | depart -> OVERFLOW[i-1]
+  ).
+
+|| CHECK_CARPARK = (OVERFLOW(4) || CARPARK).

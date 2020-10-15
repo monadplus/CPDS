@@ -1,0 +1,17 @@
+# The Warring Neighbors
+
+- Complete the snippet.
+
+See neighbours.lts
+
+- Safety property
+
+The property is not violated.
+
+- Progress property
+
+Under fair scheduling, they eventually enter to the field to pick berries.
+
+- What if the neighbors are greedy?
+
+If both neighbors raise the flag at, approximately, the same time, they will have to lower the flag and try again. In a hypothetical worst-case scenario, they will raise the flag indefinitely.
