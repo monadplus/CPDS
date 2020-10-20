@@ -5,10 +5,11 @@
 qs([]) -> [];
 qs([H|T]) ->
     LT = [X || X <- T, X < H],
-    GE = [X || X <- T, X>= H],
+    GE = [X || X <- T, X >= H],
     qs(LT) ++ [H] ++ qs(GE).
 
 %% parallel qs
+%% ?MODULE expands to the module name i.e. quicksort
 pqs(L) ->
   P = spawn(?MODULE, psq2, [self(), L]),
   rcv(P).
