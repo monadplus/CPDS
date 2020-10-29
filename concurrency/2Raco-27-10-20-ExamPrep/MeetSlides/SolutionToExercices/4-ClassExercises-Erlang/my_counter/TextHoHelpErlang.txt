@@ -1,0 +1,44 @@
+Text to help intersection
+
+====================================================
+
+
+
+change directory
+
+cd("C:/Users/gabarro/Desktop/NewCurrentWork/PCD/CPDS/Lectures-(slides)/7-ExamPreparation/4-ClassExercises-Erlang/my_counter").
+
+
+c(my_counter).
+
+
+
+8> Counter = my_counter:start(). 
+<0.64.0>
+9> 
+
+%%--- initially value zero--
+9> my_counter:value(Counter).
+0
+
+%%--- increment-----
+10> my_counter:increment(Counter).
+increment
+
+%%---read the (incremented) value
+11> my_counter:value(Counter).
+1
+
+%%--- increment again
+12> my_counter:increment(Counter).
+increment
+
+%%---read the (incremented) value
+13> my_counter:value(Counter).    
+2
+2
+27> my_counter:stop(Counter).     
+stop
+
+
+

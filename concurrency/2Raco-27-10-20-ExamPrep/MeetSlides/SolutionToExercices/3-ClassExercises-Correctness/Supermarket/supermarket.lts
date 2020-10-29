@@ -1,0 +1,28 @@
+const Min = 1                     //defines the threshold for filling
+const Max = 3    //shelf capacity
+
+SHELF = BOT[0],
+BOT[i:0..Max] 
+   = (when (i > 0) get[k:1..i] -> BOT[i - k]
+      |when (i<= Min) fill -> BOT[Max]
+      ).
+
+WORKER = (fill->WORKER).
+
+CLIENT = (get[1..Max]->CLIENT).
+
+||SUPERMARKET = (SHELF || WORKER || CLIENT).
+
+property NOFILLCHAINED 
+  = (get[1..Max] -> NOFILLCHAINED
+     |fill -> get[1..Max] -> NOFILLCHAINED
+     ).
+
+||CHECK = (SUPERMARKET || NOFILLCHAINED).
+
+||NEW_MARKET 
+   =(SHELF||WORKER||{a,b}:CLIENT)/{{a,b}.get/get} << {a.get}.
+
+progress FILL = {fill}
+
+progress B_GET = {b.get[1..Max]}

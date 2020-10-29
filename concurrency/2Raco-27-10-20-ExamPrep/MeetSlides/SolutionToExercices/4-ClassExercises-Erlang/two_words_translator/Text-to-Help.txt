@@ -1,0 +1,33 @@
+To be executed during the lecture:
+==================================
+
+
+
+
+1) Change directory
+cd("C:/Users/gabarro/Desktop/NewCurrentWork/PCD/CPDS/Lectures-(slides)/7-ExamPreparation/4-ClassExercises-Erlang/two_words_translator").
+
+
+
+
+2) Compile
+
+c(translate).
+
+
+3) Create and run the process
+
+28> Pid = spawn(fun translate:loop/0).
+<0.156.0>
+29> Pid ! "casa".
+house
+"casa"
+30> Pid ! "blanca".
+white
+"blanca"
+31> Pid ! "rosada".
+I do not understand
+"rosada"
+32> Pid ! "blanca".
+"blanca"
+

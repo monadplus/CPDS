@@ -1,0 +1,18 @@
+
+
+MAKER_A=(make_A->ready->restart->MAKER_A).
+MAKER_B=(make_B->ready->restart->MAKER_B).
+ASSEMBLER_A_B =(ready->assemble_A_B->ready_two->ASSEMBLER_A_B).
+ASSEMBLER=(ready_two->make_C->assemble_A_B_C->output->restart->ASSEMBLER).
+
+||FACTORY=(MAKER_A||MAKER_B||ASSEMBLER_A_B||ASSEMBLER)\{ready, ready_two}.
+
+||PRIORITY_SYNC = FACTORY<<{make_A}.
+
+property  ORDER_A_B_C=(assemble_A_B->make_C->ORDER_A_B_C).
+
+||FIRST_TEST =(FACTORY||ORDER_A_B_C).
+
+progress NON_STOP ={output}
+
+ 

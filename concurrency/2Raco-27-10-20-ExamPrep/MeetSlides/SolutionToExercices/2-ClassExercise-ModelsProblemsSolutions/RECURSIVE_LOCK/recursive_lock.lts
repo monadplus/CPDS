@@ -1,0 +1,9 @@
+const N = 3
+range P = 1..2
+range C = 0..N
+
+RECURSIVE_LOCK   = (acquire[p:P] -> LOCKED[p][0]),
+LOCKED[p:P][c:C] = (acquire[p]   -> LOCKED[p][c+1]
+                   |when (c==0) release[p] -> RECURSIVE_LOCK
+                   |when (c>0)  release[p] -> LOCKED[p][c-1]
+                   ).

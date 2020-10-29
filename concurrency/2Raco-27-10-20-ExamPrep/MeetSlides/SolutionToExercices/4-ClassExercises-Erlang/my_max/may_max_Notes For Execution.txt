@@ -1,0 +1,43 @@
+--------------------
+
+--- Change Directory
+
+---------------------
+
+cd("C:/Users/gabarro/Desktop/NewCurrentWork/PCD/CPDS/Lectures-(slides)/7-ExamPreparation/4-ClassExercises-Erlang/my_max").
+-------------------
+
+complile max of a list
+
+-------------------
+
+c(my_max).
+
+L=[8, 7, 6, 5, 2, 4, 2, 1, 9, 2, 5, 7, 5, 4].
+
+
+my_max:my_max(L).
+
+my_max:pmax(L).
+
+
+
+my_max:test_seq(15000000).
+
+
+my_max:test_par(15000000).
+
+===================================
+Comentaris temps execucio
+================================
+
+12> my_max:test_seq(15000000).
+0.125
+13> my_max:test_par(15000000).
+1.327994999999646
+14> 
+
+
+
+
+

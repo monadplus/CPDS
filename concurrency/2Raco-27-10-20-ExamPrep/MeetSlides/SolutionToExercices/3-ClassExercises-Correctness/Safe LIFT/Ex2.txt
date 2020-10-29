@@ -1,0 +1,24 @@
+===============
+
+Ex 2
+
+===============
+
+
+A lift has a maximum capacity of N people. In a model of the lift control system,
+passengers entering the lift are signalled by an enter action and passengers leaving
+the lift are signalled by an exit action. Specify a safety property in FSP, which
+when composed with the lift model, will check that the system never allows the lift
+that it controls to have more than N occupants.
+Answer:
+
+
+const N = 10
+property LIFTCAPACITY = LIFT[0],
+LIFT[i:0..N-1] = (enter -> LIFT[i+1]
+|when(i>0) exit -> LIFT[i-1]
+|when(i==0)exit -> LIFT[0]
+).
+
+
+When N= 2 the LTS is: 

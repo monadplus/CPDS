@@ -1,0 +1,35 @@
+
+=========================
+
+Exercise 1
+
+
+=======================
+
+
+MICROWAVE = (put_food_in -> SETTINGS),
+SETTINGS = (set_heat_level -> set_time -> COOK |set_time -> set_heat_level -> COOK),
+COOK = (cook -> take_food_out -> MICROWAVE).
+
+
+Model the MICROWAVE example from above, this time using parallel composition.
+
+Hint: You will need to use handshaking with shared actions, so that it is not possible
+to produce silly action traces. eg to cook after take food out. 
+
+There are
+many ways of doing this, you may want to use the following three processes: COOK,
+SET HEAT and SET TIME.)
+
+Answer:
+
+COOK = ( put_food_in -> cook -> take_food_out -> COOK).
+SET_HEAT = ( put_food_in -> set_heat_level -> cook -> SET_HEAT).
+SET_TIME = ( put_food_in -> set_time -> cook -> SET_TIME).
+||MICROWAVE = ( COOK||SET_HEAT||SET_TIME).
+
+The processes SET HEAT and SET TIME require the action put food in so that
+they handshake with the MICROWAVE process, and are not allowed to just randomly
+interleave. The MICROWAVE process cannot cook until both the actions
+set heat level and set time have occurred, this is achieved by the shared cook
+action.

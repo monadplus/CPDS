@@ -1,0 +1,16 @@
+/*
+* Concurrency: Class exercise
+*/
+
+
+
+range Level = 0..2
+
+SENSOR = SENSOR[2],
+SENSOR[w:Level] = 
+(level[i:Level] -> SENSOR[i]
+| when (w<2) low -> SENSOR[w]
+| when (w>8) high -> SENSOR[w]
+| when (w>=2 && w<=8) normal -> SENSOR[w]
+).
+

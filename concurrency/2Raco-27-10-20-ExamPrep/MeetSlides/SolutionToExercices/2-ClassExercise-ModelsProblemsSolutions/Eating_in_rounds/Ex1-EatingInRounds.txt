@@ -1,0 +1,54 @@
+ALICE =(a_eat->ALICE).
+BOB =(b_eat->BOB).
+MARY = (m_eat->MARY).
+
+FIRST_CONTROL =(a_eat->b_eat->m_eat->FIRST_CONTROL).
+
+//||LUNCH =(ALICE||BOB||MARY||FIRST_CONTROL).
+
+
+//-----------------------
+
+
+SECOND_CONTROL = TURN[1],
+TURN[i: 1..3] 
+   = (when (i == 1) a_eat->TURN[2]
+	|when (i==2) b_eat->TURN[3]
+	|when (i==3) m_eat->TURN[1]).
+
+||OTHER_LUNCH = (ALICE||BOB||MARY||SECOND_CONTROL).
+
+/*
+
+class SecondControl{
+	protected int turn = 1;
+	SecondTurn()
+	public synchronized a_eat()throws InterruptedException{
+		while(turn!=1){
+			wait();
+		}
+		++turn;
+		System.out.println("a has eaten");
+		notifyAll();
+	}
+	public synchronized b_eat()InterruptedException{
+		while(turn!=2){
+			wait();
+		}
+		++turn;
+		System.out.println("b has eaten");
+		notifyAll();
+	}
+	public synchronized m_eat() InterruptedException{
+		while(turn!=3){
+			wait();
+		}
+		++turn;
+		System.out.println("m has eaten");
+		notifyAll();
+	}
+
+	
+}
+
+*/

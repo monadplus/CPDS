@@ -1,0 +1,6 @@
+/** Concurrency: Class exercises*  
+ */
+
+OTHERDAY3 
+= (up -> (tea -> work-> OTHERDAY3 | coffee -> work-> OTHERDAY3)).
+
