@@ -16,13 +16,6 @@ double relax_jacobi (double *u, double *utmp, unsigned sizex, unsigned sizey)
      *    compute the average of the neighbors i.e. left, right, top, bottom.
      *    compute the difference with the average.
      *    sum the diff^2
-     *
-     * I was expecting good results from  giving to each thread a region of the matrix by
-     *    nbx = omp_get_max_threads()/2
-     *    nby = omp_get_max_threads()/2
-     * so when collapsed the number of regions was omp_get_max_threads().
-     *
-     * But no, this make it worse.
      */
     double diff, sum=0.0;
     int nbx, bx, nby, by;
@@ -45,7 +38,26 @@ double relax_jacobi (double *u, double *utmp, unsigned sizex, unsigned sizey)
                   sum += diff * diff;
                 }
     return sum;
+}
 
+double relax_jacobi_2 (double *u, double *utmp, unsigned sizex, unsigned sizey)
+{
+    double diff, sum=0.0;
+    int nbx = omp_get_max_threads();
+    int bx = (sizex + nbx - 1)/nbx; // fast ceiling
+
+    #pragma omp parallel for private(diff) reduction(+:sum)
+    for (int ii=0; ii<nbx; ii++)
+        for (int i=1+ii*bx; i<=min((ii+1)*bx, sizex-2); i++)
+            for (int j=1; j<=sizey-2; j++) {
+                utmp[i*sizey+j] = 0.25 * (u[ i*sizey     + (j-1) ]+  // left
+                                          u[ i*sizey     + (j+1) ]+  // right
+                                          u[ (i-1)*sizey + j     ]+  // top
+                                          u[ (i+1)*sizey + j     ]); // bottom
+                diff = utmp[i*sizey+j] - u[i*sizey + j];
+                sum += diff * diff;
+            }
+    return sum;
 }
 
 /*
