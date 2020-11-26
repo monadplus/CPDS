@@ -122,7 +122,7 @@ double relax_gauss (double *u, unsigned sizex, unsigned sizey)
 {
     int n_threads = omp_get_max_threads();
     // The blocks depends on the left and upper block
-    char deps[n_threads][n_threads]; // Dependecy matrix
+    double sums[n_threads][n_threads]; // Dependecy matrix
 
     double unew, diff, sum=0.0;
     int nbx, bx, nby, by;
@@ -132,28 +132,37 @@ double relax_gauss (double *u, unsigned sizex, unsigned sizey)
     by = (sizey + nbx - 1)/nby;
 
     #pragma omp parallel
-    #pragma omp single
-    for (int ii=0; ii<nbx; ii++) {
-        for (int jj=0; jj<nby; jj++) {
-                #pragma omp task shared(sum, u) private(unew, diff)                       \
-                depend (in : deps[max(0,ii-1)][jj], deps[ii][max(0,jj-1)]) depend (out : deps[ii][jj])
-            {
-                double aux_sum=0.0;
-                for (int i=1+ii*bx; i<=min((ii+1)*bx, sizex-2); i++) {
-                    for (int j=1+jj*by; j<=min((jj+1)*by, sizey-2); j++) {
-                        unew= 0.25 * ( u[ i*sizey     + (j-1) ]+  // left
-                                       u[ i*sizey     + (j+1) ]+  // right
-                                       u[ (i-1)*sizey + j     ]+  // top
-                                       u[ (i+1)*sizey + j     ]); // bottom
-                        diff = unew - u[i*sizey+ j];
-                        aux_sum += diff * diff;
-                        u[i*sizey+j]=unew;
+    {
+        #pragma omp single
+        {
+            for (int ii=0; ii<nbx; ii++) {
+                for (int jj=0; jj<nby; jj++) {
+                    #pragma omp task shared(sums, sum, u) private(unew, diff)                \
+                    depend (in : sums[max(0,ii-1)][jj], sums[ii][max(0,jj-1)]) depend (out : sums[ii][jj])
+                    {
+                        double aux_sum=0.0;
+                        for (int i=1+ii*bx; i<=min((ii+1)*bx, sizex-2); i++) {
+                            for (int j=1+jj*by; j<=min((jj+1)*by, sizey-2); j++) {
+                                unew= 0.25 * ( u[ i*sizey     + (j-1) ]+  // left
+                                            u[ i*sizey     + (j+1) ]+  // right
+                                            u[ (i-1)*sizey + j     ]+  // top
+                                            u[ (i+1)*sizey + j     ]); // bottom
+                                diff = unew - u[i*sizey+ j];
+                                aux_sum += diff * diff;
+                                u[i*sizey+j]=unew;
+                            }
+                        }
+                        sums[ii][jj] = aux_sum;
                     }
                 }
-                #pragma omp atomic
-                sum += aux_sum;
             }
         }
-    }
+    } // implicit barrier
+
+    for (int ii=0; ii<nbx; ii++)
+        for (int jj=0; jj<nby; jj++) {
+            sum += sums[ii][jj];
+        }
+
     return sum;
 }
