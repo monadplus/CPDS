@@ -74,38 +74,42 @@ double relax_redblack (double *u, unsigned sizex, unsigned sizey)
     nby = omp_get_max_threads();
     by = (sizey + nby - 1)/nby;
 
-    // Computing "Red" blocks
-    #pragma omp parallel for private(unew, diff, lsw) reduction(+:sum)
-    for (int ii=0; ii<nbx; ii++) {
-        lsw = ii%2;
-        for (int jj=lsw; jj<nby; jj=jj+2) 
-            for (int i=1+ii*bx; i<=min((ii+1)*bx, sizex-2); i++) 
-                for (int j=1+jj*by; j<=min((jj+1)*by, sizey-2); j++) {
-                    unew= 0.25 * ( u[ i*sizey     + (j-1) ]+  // left
-                                   u[ i*sizey     + (j+1) ]+  // right
-                                   u[ (i-1)*sizey + j     ]+  // top
-                                   u[ (i+1)*sizey + j     ]); // bottom
-                    diff = unew - u[i*sizey+ j];
-                    sum += diff * diff;
-                    u[i*sizey+j] = unew;
-                }
-    }
+    #pragma omp parallel private(unew, diff, lsw) shared(sum)
+    {
 
-    // Computing "Black" blocks
-    #pragma omp parallel for private(unew, diff, lsw) reduction(+:sum)
-    for (int ii=0; ii<nbx; ii++) {
-        lsw = (ii+1)%2;
-        for (int jj=lsw; jj<nby; jj=jj+2) 
-            for (int i=1+ii*bx; i<=min((ii+1)*bx, sizex-2); i++) 
-                for (int j=1+jj*by; j<=min((jj+1)*by, sizey-2); j++) {
-                    unew= 0.25 * ( u[ i*sizey     + (j-1) ]+  // left
-                                   u[ i*sizey     + (j+1) ]+  // right
-                                   u[ (i-1)*sizey + j     ]+  // top
-                                   u[ (i+1)*sizey + j     ]); // bottom
-                    diff = unew - u[i*sizey+ j];
-                    sum += diff * diff;
-                    u[i*sizey+j] = unew;
-                }
+        // Computing "Red" blocks
+        #pragma omp for reduction(+:sum)
+        for (int ii=0; ii<nbx; ii++) {
+            lsw = ii%2;
+            for (int jj=lsw; jj<nby; jj=jj+2)
+                for (int i=1+ii*bx; i<=min((ii+1)*bx, sizex-2); i++)
+                    for (int j=1+jj*by; j<=min((jj+1)*by, sizey-2); j++) {
+                        unew= 0.25 * ( u[ i*sizey     + (j-1) ]+  // left
+                                    u[ i*sizey     + (j+1) ]+  // right
+                                    u[ (i-1)*sizey + j     ]+  // top
+                                    u[ (i+1)*sizey + j     ]); // bottom
+                        diff = unew - u[i*sizey+ j];
+                        sum += diff * diff;
+                        u[i*sizey+j] = unew;
+                    }
+        }
+
+        // Computing "Black" blocks
+        #pragma omp for reduction(+:sum)
+        for (int ii=0; ii<nbx; ii++) {
+            lsw = (ii+1)%2;
+            for (int jj=lsw; jj<nby; jj=jj+2)
+                for (int i=1+ii*bx; i<=min((ii+1)*bx, sizex-2); i++)
+                    for (int j=1+jj*by; j<=min((jj+1)*by, sizey-2); j++) {
+                        unew= 0.25 * ( u[ i*sizey     + (j-1) ]+  // left
+                                    u[ i*sizey     + (j+1) ]+  // right
+                                    u[ (i-1)*sizey + j     ]+  // top
+                                    u[ (i+1)*sizey + j     ]); // bottom
+                        diff = unew - u[i*sizey+ j];
+                        sum += diff * diff;
+                        u[i*sizey+j] = unew;
+                    }
+        }
     }
 
     return sum;
