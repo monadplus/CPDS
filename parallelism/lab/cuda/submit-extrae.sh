@@ -12,6 +12,7 @@ executable=./heatCUDA
 # Define threads per block
 txb=16
 
-module load extrae
+# module load extrae
 
-./trace.sh ${executable} test.dat -t $txb
+# ./trace.sh ${executable} test.dat -t $txb
+$(executable) test.dat -t $txb

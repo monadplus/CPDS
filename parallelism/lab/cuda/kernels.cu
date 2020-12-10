@@ -2,8 +2,8 @@
 #include <float.h>
 #include <cuda.h>
 
-__global__ void gpu_Heat (float *h, float *g, int N) {
+// NOTE Keep versions apart e.g. gpu_Heat1, gpu_Heat2, ...
 
-	// TODO: kernel computation
-	//...
+__global__ void gpu_Heat (float *h, float *g, int N) {
+	// TODO
 }

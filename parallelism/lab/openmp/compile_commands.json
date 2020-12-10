@@ -1,0 +1,51 @@
+[
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-c",
+      "-Wall",
+      "-std=c99",
+      "-O3",
+      "misc.c",
+      "-o",
+      "misc.o"
+    ],
+    "directory": "/home/arnau/master/CPDS/parallelism/lab/openmp",
+    "file": "/home/arnau/master/CPDS/parallelism/lab/openmp/misc.c",
+    "output": "/home/arnau/master/CPDS/parallelism/lab/openmp/misc.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-c",
+      "-Wall",
+      "-std=c99",
+      "-O3",
+      "-fopenmp",
+      "heat-omp.c",
+      "misc.o",
+      "-o",
+      "heatomp"
+    ],
+    "directory": "/home/arnau/master/CPDS/parallelism/lab/openmp",
+    "file": "/home/arnau/master/CPDS/parallelism/lab/openmp/heat-omp.c",
+    "output": "/home/arnau/master/CPDS/parallelism/lab/openmp/heat-omp.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-c",
+      "-Wall",
+      "-std=c99",
+      "-O3",
+      "-fopenmp",
+      "solver-omp.c",
+      "misc.o",
+      "-o",
+      "heatomp"
+    ],
+    "directory": "/home/arnau/master/CPDS/parallelism/lab/openmp",
+    "file": "/home/arnau/master/CPDS/parallelism/lab/openmp/solver-omp.c",
+    "output": "/home/arnau/master/CPDS/parallelism/lab/openmp/solver-omp.o"
+  }
+]

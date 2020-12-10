@@ -4,6 +4,7 @@ CUDAPATH = /opt/cuda/4.1
 NVCCFLAGS = -I$(CUDAPATH)/include #--ptxas-options=-v 
 LFLAGS = -L$(CUDAPATH)/lib64 -lcuda -lcudart -lm
 
+
 ALL	= heatCUDA
 all: $(ALL)
 

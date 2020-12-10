@@ -18,13 +18,13 @@ double relax_jacobi (double *u, double *utmp, unsigned sizex, unsigned sizey)
         for (int jj=0; jj<nby; jj++) 
             for (int i=1+ii*bx; i<=min((ii+1)*bx, sizex-2); i++) 
                 for (int j=1+jj*by; j<=min((jj+1)*by, sizey-2); j++) {
-	            utmp[i*sizey+j]= 0.25 * (u[ i*sizey     + (j-1) ]+  // left
-					     u[ i*sizey     + (j+1) ]+  // right
-				             u[ (i-1)*sizey + j     ]+  // top
-				             u[ (i+1)*sizey + j     ]); // bottom
-	            diff = utmp[i*sizey+j] - u[i*sizey + j];
-	            sum += diff * diff; 
-	        }
+                utmp[i*sizey+j]= 0.25 * (u[ i*sizey     + (j-1) ]+  // left
+                         u[ i*sizey     + (j+1) ]+  // right
+                             u[ (i-1)*sizey + j     ]+  // top
+                             u[ (i+1)*sizey + j     ]); // bottom
+                diff = utmp[i*sizey+j] - u[i*sizey + j];
+                sum += diff * diff;
+            }
 
     return sum;
 }
@@ -48,14 +48,14 @@ double relax_redblack (double *u, unsigned sizex, unsigned sizey)
         for (int jj=lsw; jj<nby; jj=jj+2) 
             for (int i=1+ii*bx; i<=min((ii+1)*bx, sizex-2); i++) 
                 for (int j=1+jj*by; j<=min((jj+1)*by, sizey-2); j++) {
-	            unew= 0.25 * (    u[ i*sizey	+ (j-1) ]+  // left
-				      u[ i*sizey	+ (j+1) ]+  // right
-				      u[ (i-1)*sizey	+ j     ]+  // top
-				      u[ (i+1)*sizey	+ j     ]); // bottom
-	            diff = unew - u[i*sizey+ j];
-	            sum += diff * diff; 
-	            u[i*sizey+j]=unew;
-	        }
+                unew= 0.25 * (    u[ i*sizey    + (j-1) ]+  // left
+                      u[ i*sizey    + (j+1) ]+  // right
+                      u[ (i-1)*sizey    + j     ]+  // top
+                      u[ (i+1)*sizey    + j     ]); // bottom
+                diff = unew - u[i*sizey+ j];
+                sum += diff * diff;
+                u[i*sizey+j]=unew;
+            }
     }
 
     // Computing "Black" blocks
@@ -64,14 +64,14 @@ double relax_redblack (double *u, unsigned sizex, unsigned sizey)
         for (int jj=lsw; jj<nby; jj=jj+2) 
             for (int i=1+ii*bx; i<=min((ii+1)*bx, sizex-2); i++) 
                 for (int j=1+jj*by; j<=min((jj+1)*by, sizey-2); j++) {
-	            unew= 0.25 * (    u[ i*sizey	+ (j-1) ]+  // left
-				      u[ i*sizey	+ (j+1) ]+  // right
-				      u[ (i-1)*sizey	+ j     ]+  // top
-				      u[ (i+1)*sizey	+ j     ]); // bottom
-	            diff = unew - u[i*sizey+ j];
-	            sum += diff * diff; 
-	            u[i*sizey+j]=unew;
-	        }
+                unew= 0.25 * (    u[ i*sizey    + (j-1) ]+  // left
+                      u[ i*sizey    + (j+1) ]+  // right
+                      u[ (i-1)*sizey    + j     ]+  // top
+                      u[ (i+1)*sizey    + j     ]); // bottom
+                diff = unew - u[i*sizey+ j];
+                sum += diff * diff;
+                u[i*sizey+j]=unew;
+            }
     }
 
     return sum;
@@ -90,18 +90,22 @@ double relax_gauss (double *u, unsigned sizex, unsigned sizey)
     nby = NB;
     by = sizey/nby;
     for (int ii=0; ii<nbx; ii++)
-        for (int jj=0; jj<nby; jj++) 
+        for (int jj=0; jj<nby; jj++)
+
+            // TODO send
+
             for (int i=1+ii*bx; i<=min((ii+1)*bx, sizex-2); i++) 
                 for (int j=1+jj*by; j<=min((jj+1)*by, sizey-2); j++) {
-	            unew= 0.25 * (    u[ i*sizey	+ (j-1) ]+  // left
-				      u[ i*sizey	+ (j+1) ]+  // right
-				      u[ (i-1)*sizey	+ j     ]+  // top
-				      u[ (i+1)*sizey	+ j     ]); // bottom
-	            diff = unew - u[i*sizey+ j];
-	            sum += diff * diff; 
-	            u[i*sizey+j]=unew;
+                unew= 0.25 * (    u[ i*sizey    + (j-1) ]+  // left
+                      u[ i*sizey    + (j+1) ]+  // right
+                      u[ (i-1)*sizey    + j     ]+  // top
+                      u[ (i+1)*sizey    + j     ]); // bottom
+                diff = unew - u[i*sizey+ j];
+                sum += diff * diff;
+                u[i*sizey+j]=unew;
                 }
+
+            // TODO recv
 
     return sum;
 }
-
