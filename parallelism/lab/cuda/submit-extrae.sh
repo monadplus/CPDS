@@ -1,4 +1,5 @@
 #!/bin/bash
+
 # @ job_name		= heatCUDA.extrae
 # @ partition		= debug
 # @ initialdir		= .
@@ -15,4 +16,6 @@ txb=16
 # module load extrae
 
 # ./trace.sh ${executable} test.dat -t $txb
-$(executable) test.dat -t $txb
+export LD_LIBRARY_PATH=LD_LIBRARY_PATH:/opt/cuda/4.1/lib64
+
+${executable} test.dat -t $txb

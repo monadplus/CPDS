@@ -31,6 +31,7 @@ int finalize( algoparam_t *param );
 void write_image( FILE * f, float *u, unsigned sizex, unsigned sizey );
 int coarsen(float *uold, unsigned oldx, unsigned oldy, float *unew, unsigned newx, unsigned newy );
 __global__ void gpu_Heat (float *h, float *g, int N);
+__global__ void gpu_Heat2 (float *h, float *g, float *i, int N);
 
 #define NB 8
 #define min(a,b) ( ((a) < (b)) ? (a) : (b) )
@@ -117,12 +118,13 @@ int main( int argc, char *argv[] ) {
     }
 
     // full size (param.resolution are only the inner points)
-    np = param.resolution + 2;
+    np = param.resolution + 2; //256 + 2
 
     int Grid_Dim, Block_Dim;
+
     if (strcmp(argv[2], "-t") == 0) {
-      Block_Dim = atoi(argv[3]);
-      Grid_Dim = np/Block_Dim + ((np%Block_Dim)!=0);;
+      Block_Dim = atoi(argv[3]); // e.g. 64/128/256
+      Grid_Dim = np/Block_Dim + ((np%Block_Dim)!=0); // Last block handles the remaining elements
       if ((Block_Dim*Block_Dim) > 512) {
         printf("Error -- too many threads in block, try again\n");
         return 1;
@@ -213,24 +215,28 @@ int main( int argc, char *argv[] ) {
     cudaEventRecord( start, 0 );
     cudaEventSynchronize( start );
 
-    float *dev_u, *dev_uhelp;
+    float *dev_u, *dev_uhelp, *dev_r, *r;
     size_t size = np*np*sizeof(float);
+	  r = (float*) malloc(size);
 
     cudaMalloc(&dev_u, size);
-    cudaMemcpy(&dev_u, &(param->u), size, cudaMemcpyHostToDevice)
+    cudaMemcpy(dev_u, param.u, size, cudaMemcpyHostToDevice);
 
     cudaMalloc(&dev_uhelp, size);
-    cudaMemcpy(&dev_uhelp, &(param->uhelp), size, cudaMemcpyHostToDevice)
+    cudaMemcpy(dev_uhelp, param.uhelp, size, cudaMemcpyHostToDevice);
+
+    cudaMalloc(&dev_r, size);
 
     iter = 0;
+    residual = 0.0;
     while(1) {
-        gpu_Heat<<<Grid,Block>>>(dev_u, dev_uhelp, np);
-
+        //gpu_Heat<<<Grid,Block,Block_Dim*Block_Dim*sizeof(float)>>>(dev_u, dev_uhelp, np);
+        gpu_Heat2<<<Grid,Block>>>(dev_u, dev_uhelp, dev_r, np);
         cudaThreadSynchronize();
 
-        cudaMemcpy(&dev_u, &(param->u), size, cudaMemcpyDeviceToHost)
-        cudaMemcpy(&dev_uhelp, &(param->uhelp), size, cudaMemcpyDeviceToHost)
-        residual = cpu_residual(param.u, param.uhelp, np, np);
+        //residual = cpu_residual(param.u, param.uhelp, np, np);
+        //fprintf(stdout, "Residual=%f: %d iterations\n", residual, iter);
+        cudaMemcpy(r, dev_r, size, cudaMemcpyDeviceToHost);
 
         float * tmp = dev_u;
         dev_u = dev_uhelp;
@@ -238,12 +244,21 @@ int main( int argc, char *argv[] ) {
 
         iter++;
 
+        for(int i = 0; i < np*np; i++) residual += r[i];
+
         if (residual < 0.00005) break;
         if (iter>=param.maxiter) break;
+
+        residual = 0.0;
     }
 
-    //cudaMemcpy(&dev_u, &(param->u), size, cudaMemcpyDeviceToHost)
-    //cudaMemcpy(&dev_uhelp, &(param->uhelp), size, cudaMemcpyDeviceToHost)
+    cudaError_t errSync  = cudaGetLastError();
+    if (errSync != cudaSuccess) {
+      printf("Sync kernel error: %s\n", cudaGetErrorString(errSync));
+      exit(-1);
+    }
+
+    cudaMemcpy(param.u, dev_u, size, cudaMemcpyDeviceToHost);
 
     cudaFree(dev_u);
     cudaFree(dev_uhelp);
@@ -265,7 +280,7 @@ int main( int argc, char *argv[] ) {
     coarsen( param.u, np, np, param.uvis, param.visres+2, param.visres+2 );
     write_image( resfile, param.uvis, param.visres+2, param.visres+2 );
 
-    finalize( &param );
+    //finalize( &param );
 
     return 0;
 }
