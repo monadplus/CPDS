@@ -34,8 +34,8 @@ __global__ void gpu_Residuals0 (float *in, float *out) {
     if (tid % (2*s) == 0) {
       sdata[tid] += sdata[tid + s];
     }
+    __syncthreads();
   }
 
   if (tid == 0) out[blockIdx.x] = sdata[0];
 }
-
