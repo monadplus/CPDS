@@ -31,7 +31,7 @@ int finalize( algoparam_t *param );
 void write_image( FILE * f, float *u, unsigned sizex, unsigned sizey );
 int coarsen(float *uold, unsigned oldx, unsigned oldy, float *unew, unsigned newx, unsigned newy );
 __global__ void gpu_Heat0 (float *h, float *g, float *i, int N);
-__global__ void gpu_Residuals0 (float *h, float *g);
+__global__ void gpu_Residuals0 (float *h, float *g, int N);
 
 #define NB 8
 #define min(a,b) ( ((a) < (b)) ? (a) : (b) )
@@ -77,7 +77,7 @@ float cpu_jacobi (float *u, float *utmp, unsigned sizex, unsigned sizey)
 
 void test()
 {
-  int n = 101;
+  int n = 1200;
   size_t size = n*sizeof(float);
 
   size_t blockSize = 16; // Must be power of 2
@@ -87,7 +87,7 @@ void test()
   float *res_vec  = (float*) malloc(blocksPerGrid*sizeof(float));
 
   for(int i = 1; i <= n; i++)
-    input[i-1] = ((float)i)+(float)0.00000001;
+    input[i-1] = ((float)i); //+(float)0.00000001;
 
   float *dev_in;
   float *dev_out;
@@ -96,7 +96,7 @@ void test()
 
   cudaMemcpy(dev_in, input, size, cudaMemcpyHostToDevice);
 
-  gpu_Residuals0<<<blocksPerGrid,blockSize,blockSize*sizeof(float)>>>(dev_in, dev_out);
+  gpu_Residuals0<<<blocksPerGrid,blockSize,blockSize*sizeof(float)>>>(dev_in, dev_out, n);
   cudaThreadSynchronize();
 
   cudaError_t errSync  = cudaGetLastError();
@@ -117,6 +117,7 @@ void test()
     fprintf(stderr, "[error] Expected %f but found %f\n", expected, result);
     exit(-1);
   }
+  exit(-1);
 }
 
 void usage( char *s )
@@ -219,6 +220,7 @@ int main( int argc, char *argv[] ) {
         param.uhelp = tmp;
 
         iter++;
+        //printf("Residual: %10.10f\n", residual);
 
         if (residual < 0.00005) break;
         if (iter>=param.maxiter) break;
@@ -263,7 +265,7 @@ int main( int argc, char *argv[] ) {
     cudaEventRecord( start, 0 );
     cudaEventSynchronize( start );
 
-    float *dev_u, *dev_uhelp, *dev_in, *dev_out;
+    float *dev_u, *dev_uhelp, *dev_in, *dev_out, *tmp;
     size_t size = np*np*sizeof(float);
 
     cudaMalloc(&dev_u, size);
@@ -276,7 +278,7 @@ int main( int argc, char *argv[] ) {
     float* r = (float*) malloc(size);
 
     size_t n = np*np;
-    size_t blocksPerGrid = std::ceil((1.*n) / Block_Dim);
+    size_t blocksPerGrid;
 
     iter = 0;
     residual = 0.0;
@@ -287,25 +289,36 @@ int main( int argc, char *argv[] ) {
         gpu_Heat0<<<Grid,Block>>>(dev_u, dev_uhelp, dev_in, np);
         cudaThreadSynchronize();
 
-        gpu_Residuals0<<<blocksPerGrid,Block_Dim,Block_Dim*sizeof(float)>>>(dev_in, dev_out);
+        do {
+          blocksPerGrid = std::ceil((1.*n) / Block_Dim);
+          gpu_Residuals0<<<blocksPerGrid,Block_Dim,Block_Dim*sizeof(float)>>>(dev_in, dev_out, n);
+          tmp = dev_in;
+          dev_in = dev_out;
+          dev_out = dev_in;
+          n = blocksPerGrid;
+        } while (n > Block_Dim);
+
+        if (n > 1) {
+          gpu_Residuals0<<<1,Block_Dim,Block_Dim*sizeof(float)>>>(dev_in, dev_out, n);
+        }
+
         cudaThreadSynchronize();
+        cudaMemcpy(&residual, dev_in, sizeof(float), cudaMemcpyDeviceToHost);
+        //printf("Residual: %10.10f\n", residual);
 
-        cudaMemcpy(r, dev_out, np*sizeof(float), cudaMemcpyDeviceToHost);
-        for(int i = 0; i < np; i++) residual += r[i];
-
-        float * tmp = dev_u;
+        tmp = dev_u;
         dev_u = dev_uhelp;
         dev_uhelp = tmp;
 
         iter++;
 
+        //if (iter == 10) break;
         if (residual < 0.00005) break;
         if (iter>=param.maxiter) break;
 
         // Reset loop variables
         residual = 0.0;
-        size_t n = size;
-        size_t blocksPerGrid = std::ceil((1.*n) / Block_Dim);
+        n = np*np;
     }
 
     cudaError_t errSync  = cudaGetLastError();

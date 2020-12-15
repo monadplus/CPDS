@@ -20,22 +20,25 @@ __global__ void gpu_Heat0 (float *dev_u, float *dev_uhelp, float *dev_r, int N) 
   }
 }
 
-__global__ void gpu_Residuals0 (float *in, float *out) {
+__global__ void gpu_Residuals0 (float *in, float *out, int N) {
 
   extern __shared__ float sdata[];
 
   unsigned int tid = threadIdx.x;
   unsigned int i = blockIdx.x*blockDim.x + threadIdx.x;
 
-  sdata[tid] = in[i];
-  __syncthreads();
+  if (i < N) {
 
-  for(unsigned int s=1; s < blockDim.x; s *= 2) {
-    if (tid % (2*s) == 0) {
-      sdata[tid] += sdata[tid + s];
-    }
+    sdata[tid] = in[i];
     __syncthreads();
-  }
 
-  if (tid == 0) out[blockIdx.x] = sdata[0];
+    for(unsigned int s=1; s < blockDim.x && i+s < N; s *= 2) {
+      if (tid % (2*s) == 0) {
+        sdata[tid] += sdata[tid + s];
+      }
+      __syncthreads();
+    }
+
+    if (tid == 0) out[blockIdx.x] = sdata[0];
+  }
 }
