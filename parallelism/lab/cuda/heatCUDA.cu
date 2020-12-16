@@ -4,6 +4,8 @@
 #include <float.h>
 #include <cuda.h>
 
+// =======================================================
+
 typedef struct {
     float posx;
     float posy;
@@ -23,18 +25,25 @@ typedef struct {
     heatsrc_t *heatsrcs;
 } algoparam_t;
 
-// function declarations
+// =======================================================
+
 int read_input( FILE *infile, algoparam_t *param );
 void print_params( algoparam_t *param );
 int initialize( algoparam_t *param );
 int finalize( algoparam_t *param );
 void write_image( FILE * f, float *u, unsigned sizex, unsigned sizey );
 int coarsen(float *uold, unsigned oldx, unsigned oldy, float *unew, unsigned newx, unsigned newy );
+int coarsen(float *uold, unsigned oldx, unsigned oldy, float *unew, unsigned newx, unsigned newy );
 __global__ void gpu_Heat0 (float *h, float *g, float *i, int N);
-__global__ void gpu_Residuals0 (float *h, float *g, int N);
+float cpu_Reduce(float *dev_in, int blockSize, int N);
+__global__ void gpu_Reduce0 (float *h, float *g, int N);
+
+// =======================================================
 
 #define NB 8
 #define min(a,b) ( ((a) < (b)) ? (a) : (b) )
+
+// =======================================================
 
 float cpu_residual (float *u, float *utmp, unsigned sizex, unsigned sizey)
 {
@@ -75,48 +84,65 @@ float cpu_jacobi (float *u, float *utmp, unsigned sizex, unsigned sizey)
     return(sum);
 }
 
-void test()
-{
-  int n = 1200;
-  size_t size = n*sizeof(float);
-
-  size_t blockSize = 16; // Must be power of 2
-  size_t blocksPerGrid = std::ceil((1.*n) / blockSize);
-
-  float *input = (float*) malloc(size);
-  float *res_vec  = (float*) malloc(blocksPerGrid*sizeof(float));
-
-  for(int i = 1; i <= n; i++)
-    input[i-1] = ((float)i); //+(float)0.00000001;
-
-  float *dev_in;
-  float *dev_out;
-  cudaMalloc(&dev_in, size);
+/*
+ * This only works if:
+ *  - dev_in is a CUDA array
+ *  - blockSize is multiple of N
+ *  - and N is power of two.
+ */
+float cpu_Reduce(float *dev_in, int blockSize, int N)  {
+  int n = N;
+  int blocksPerGrid = std::ceil((1.*n) / blockSize);
+  float *dev_out, *tmp;
   cudaMalloc(&dev_out, blocksPerGrid*sizeof(float));
 
-  cudaMemcpy(dev_in, input, size, cudaMemcpyHostToDevice);
+  do {
+    blocksPerGrid = std::ceil((1.*n) / blockSize);
+    printf("blocksPerGrid = %d\n", blocksPerGrid);
+    gpu_Reduce0<<<blocksPerGrid,blockSize,blockSize*sizeof(float)>>>(dev_in, dev_out, n);
+    tmp = dev_out; dev_out = dev_in; dev_in = tmp;
+    n = blocksPerGrid;
+  } while (n > blockSize);
 
-  gpu_Residuals0<<<blocksPerGrid,blockSize,blockSize*sizeof(float)>>>(dev_in, dev_out, n);
+  if (n > 1) {
+    printf("n = %d\n", blocksPerGrid);
+    gpu_Reduce0<<<1,blockSize,blockSize*sizeof(float)>>>(dev_in, tmp, n);
+  }
+
   cudaThreadSynchronize();
 
-  cudaError_t errSync  = cudaGetLastError();
-  if (errSync != cudaSuccess) {
-    printf("Sync kernel error: %s\n", cudaGetErrorString(errSync));
-    exit(-1);
+  float result;
+  cudaMemcpy(&result, tmp, sizeof(float), cudaMemcpyDeviceToHost);
+  cudaFree(dev_out);
+  return result;
+}
+
+void test_Reduce()
+{
+  int n = 2048; // Power of 2
+  int blockSize = 8; // Power of 2
+  size_t size = n*sizeof(float);
+  float *input = (float*) malloc(size);
+
+  float expected = 0.0; // (n*(n+1)) / 2;
+  for(int i = 1; i <= n; i++) {
+    float f = (float)i +(float)0.00000001;
+    input[i-1] = f;
+    expected += f;
   }
 
-  cudaMemcpy(res_vec, dev_out, blocksPerGrid*sizeof(float), cudaMemcpyDeviceToHost);
+  float *dev_in;
+  cudaMalloc(&dev_in, size);
+  cudaMemcpy(dev_in, input, size, cudaMemcpyHostToDevice);
 
-  float result = 0.0;
-  for(int i = 0; i < blocksPerGrid; i++)
-    result += res_vec[i];
-
-  float expected = (n*(n+1)) / 2;
+  float result = cpu_Reduce(dev_in, blockSize, n);
 
   if (result != expected) {
-    fprintf(stderr, "[error] Expected %f but found %f\n", expected, result);
-    exit(-1);
+    fprintf(stderr, "Test failed: expected %f but found %f\n", expected, result);
+  } else {
+    fprintf(stderr, "Test succeeded\n");
   }
+
   exit(-1);
 }
 
@@ -265,46 +291,25 @@ int main( int argc, char *argv[] ) {
     cudaEventRecord( start, 0 );
     cudaEventSynchronize( start );
 
-    float *dev_u, *dev_uhelp, *dev_in, *dev_out, *tmp;
+    float *dev_u, *dev_uhelp, *dev_in, *tmp;
     size_t size = np*np*sizeof(float);
 
     cudaMalloc(&dev_u, size);
     cudaMalloc(&dev_uhelp, size);
     cudaMalloc(&dev_in, size);
-    cudaMalloc(&dev_out, size); // TODO smaller
     cudaMemcpy(dev_u, param.u, size, cudaMemcpyHostToDevice);
-
-    // TODO remove
-    float* r = (float*) malloc(size);
-
-    size_t n = np*np;
-    size_t blocksPerGrid;
 
     iter = 0;
     residual = 0.0;
 
-    //test();
+    test_Reduce();
 
     while(1) {
         gpu_Heat0<<<Grid,Block>>>(dev_u, dev_uhelp, dev_in, np);
         cudaThreadSynchronize();
 
-        do {
-          blocksPerGrid = std::ceil((1.*n) / Block_Dim);
-          gpu_Residuals0<<<blocksPerGrid,Block_Dim,Block_Dim*sizeof(float)>>>(dev_in, dev_out, n);
-          tmp = dev_in;
-          dev_in = dev_out;
-          dev_out = dev_in;
-          n = blocksPerGrid;
-        } while (n > Block_Dim);
-
-        if (n > 1) {
-          gpu_Residuals0<<<1,Block_Dim,Block_Dim*sizeof(float)>>>(dev_in, dev_out, n);
-        }
-
-        cudaThreadSynchronize();
-        cudaMemcpy(&residual, dev_in, sizeof(float), cudaMemcpyDeviceToHost);
-        //printf("Residual: %10.10f\n", residual);
+        residual = cpu_Reduce(dev_in, Block_Dim, np*np);
+        printf("Residual: %10.10f\n", residual);
 
         tmp = dev_u;
         dev_u = dev_uhelp;
@@ -312,13 +317,8 @@ int main( int argc, char *argv[] ) {
 
         iter++;
 
-        //if (iter == 10) break;
         if (residual < 0.00005) break;
         if (iter>=param.maxiter) break;
-
-        // Reset loop variables
-        residual = 0.0;
-        n = np*np;
     }
 
     cudaError_t errSync  = cudaGetLastError();
@@ -332,7 +332,6 @@ int main( int argc, char *argv[] ) {
     cudaFree(dev_u);
     cudaFree(dev_uhelp);
     cudaFree(dev_in);
-    cudaFree(dev_out);
 
     cudaEventRecord( stop, 0 );     // instrument code to measue end time
     cudaEventSynchronize( stop );

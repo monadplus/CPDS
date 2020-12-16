@@ -20,7 +20,8 @@ __global__ void gpu_Heat0 (float *dev_u, float *dev_uhelp, float *dev_r, int N) 
   }
 }
 
-__global__ void gpu_Residuals0 (float *in, float *out, int N) {
+// This version allows the last block to be half empty.
+__global__ void gpu_Reduce0 (float *in, float *out, int N) {
 
   extern __shared__ float sdata[];
 
