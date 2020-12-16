@@ -37,6 +37,76 @@ int coarsen(float *uold, unsigned oldx, unsigned oldy, float *unew, unsigned new
 __global__ void gpu_Heat0 (float *h, float *g, float *i, int N);
 float cpu_Reduce(float *dev_residuals, int blockSize, int N);
 __global__ void gpu_Reduce0 (float *h, float *g, int N);
+__global__ void gpu_Reduce1 (float *h, float *g);
+__global__ void gpu_Reduce2 (float *h, float *g);
+__global__ void gpu_Reduce3 (float *h, float *g);
+__global__ void gpu_Reduce4 (float *h, float *g);
+__global__ void gpu_Reduce5 (float *h, float *g);
+
+///////////////////////////////////////////////////////////////////
+
+// TODO
+template <unsigned int blockSize>
+    __device__ void warpReduce1(volatile float* sdata, int tid) {
+  if (blockSize >= 64) sdata[tid] += sdata[tid + 32];
+  if (blockSize >= 32) sdata[tid] += sdata[tid + 16];
+  if (blockSize >= 16) sdata[tid] += sdata[tid +  8];
+  if (blockSize >= 8)  sdata[tid] += sdata[tid +  4];
+  if (blockSize >= 4)  sdata[tid] += sdata[tid +  2];
+  if (blockSize >= 2)  sdata[tid] += sdata[tid +  1];
+}
+
+template <unsigned int blockSize>
+    __global__ void gpu_Reduce6 (float *in, float *out) {
+
+  extern __shared__ float sdata[];
+
+  unsigned int tid = threadIdx.x;
+  unsigned int i = blockIdx.x*(blockDim.x*2) + threadIdx.x;
+
+  sdata[tid] = in[i] + in[i+blockDim.x];
+  __syncthreads();
+
+  if (blockSize >= 512) {
+    if (tid < 256) {sdata[tid] += sdata[tid + 256];} __syncthreads(); }
+  if (blockSize >= 256) {
+    if (tid < 128) {sdata[tid] += sdata[tid + 128];} __syncthreads(); }
+  if (blockSize >= 128) {
+    if (tid < 64) {sdata[tid] += sdata[tid + 64];} __syncthreads(); }
+
+  if (tid < 32) warpReduce1<blockSize>(sdata, tid);
+
+  if (tid == 0) out[blockIdx.x] = sdata[0];
+}
+
+template <unsigned int blockSize>
+    __global__ void gpu_Reduce7 (float *in, float *out, unsigned int N) {
+
+  extern __shared__ float sdata[];
+
+  unsigned int tid = threadIdx.x;
+  unsigned int i = blockIdx.x*(blockDim.x*2) + threadIdx.x;
+  unsigned int gridSize = blockSize*2*gridDim.x; // grid = #blocks
+  sdata[tid] = 0;
+
+  while (i < N) {
+    sdata[tid] += in[i] + in[i+blockSize];
+    i += gridSize;
+  }
+
+  __syncthreads();
+
+  if (blockSize >= 512) {
+    if (tid < 256) {sdata[tid] += sdata[tid + 256];} __syncthreads(); }
+  if (blockSize >= 256) {
+    if (tid < 128) {sdata[tid] += sdata[tid + 128];} __syncthreads(); }
+  if (blockSize >= 128) {
+    if (tid < 64) {sdata[tid] += sdata[tid + 64];} __syncthreads(); }
+
+  if (tid < 32) warpReduce1<blockSize>(sdata, tid);
+
+  if (tid == 0) out[blockIdx.x] = sdata[0];
+}
 
 // =======================================================
 
@@ -112,29 +182,66 @@ float cpu_jacobi (float *u, float *utmp, unsigned sizex, unsigned sizey)
     return(sum);
 }
 
-/*
- * This only works if:
- *  - dev_residuals is a CUDA array
- *  - blockSize is multiple of N
- *  - and N is power of two.
- */
+// NOTE: block size and N must be power of two.
 float cpu_Reduce(float *dev_in, int blockSize, int N)  {
   int n = N;
   int blocksPerGrid = std::ceil((1.*n) / blockSize);
   float *dev_out, *tmp;
   cudaMalloc(&dev_out, blocksPerGrid*sizeof(float));
-  //printf("blockSize %d\n", blockSize);
-  //printf("N %d\n", N);
 
   do {
     blocksPerGrid = std::ceil((1.*n) / blockSize);
-    gpu_Reduce0<<<blocksPerGrid,blockSize,blockSize*sizeof(float)>>>(dev_in, dev_out, n);
+    // Block size is limited to 512 threads.
+    // This is why we can reify using a switch block.
+    switch(blockSize) {
+      case 512:
+        gpu_Reduce7<512><<<blocksPerGrid/2,blockSize,blockSize*sizeof(float)>>>(dev_in, dev_out, n);break;
+      case 256:
+        gpu_Reduce7<256><<<blocksPerGrid/2,blockSize,blockSize*sizeof(float)>>>(dev_in, dev_out, n);break;
+      case 128:
+        gpu_Reduce7<128><<<blocksPerGrid/2,blockSize,blockSize*sizeof(float)>>>(dev_in, dev_out, n);break;
+      case 64:
+        gpu_Reduce7<64><<<blocksPerGrid/2,blockSize,blockSize*sizeof(float)>>>(dev_in, dev_out, n);break;
+      case 32:
+        gpu_Reduce7<32><<<blocksPerGrid/2,blockSize,blockSize*sizeof(float)>>>(dev_in, dev_out, n);break;
+      case 16:
+        gpu_Reduce7<16><<<blocksPerGrid/2,blockSize,blockSize*sizeof(float)>>>(dev_in, dev_out, n);break;
+      case 8:
+        gpu_Reduce7<8><<<blocksPerGrid/2,blockSize,blockSize*sizeof(float)>>>(dev_in, dev_out, n);break;
+      case 4:
+        gpu_Reduce7<4><<<blocksPerGrid/2,blockSize,blockSize*sizeof(float)>>>(dev_in, dev_out, n);break;
+      case 2:
+        gpu_Reduce7<2><<<blocksPerGrid/2,blockSize,blockSize*sizeof(float)>>>(dev_in, dev_out, n);break;
+      case 1:
+        gpu_Reduce7<1><<<blocksPerGrid/2,blockSize,blockSize*sizeof(float)>>>(dev_in, dev_out, n);break;
+    }
     tmp = dev_out; dev_out = dev_in; dev_in = tmp;
     n = blocksPerGrid;
   } while (n > blockSize);
 
   if (n > 1) {
-    gpu_Reduce0<<<1,blockSize,blockSize*sizeof(float)>>>(dev_in, tmp, n);
+    switch(blockSize) {
+      case 512:
+        gpu_Reduce7<512><<<1,blockSize,blockSize*sizeof(float)>>>(tmp, tmp, n);break;
+      case 256:
+        gpu_Reduce7<256><<<1,blockSize,blockSize*sizeof(float)>>>(tmp, tmp, n);break;
+      case 128:
+        gpu_Reduce7<128><<<1,blockSize,blockSize*sizeof(float)>>>(tmp, tmp, n);break;
+      case 64:
+        gpu_Reduce7<64><<<1,blockSize,blockSize*sizeof(float)>>>(tmp, tmp, n);break;
+      case 32:
+        gpu_Reduce7<32><<<1,blockSize,blockSize*sizeof(float)>>>(tmp, tmp, n);break;
+      case 16:
+        gpu_Reduce7<16><<<1,blockSize,blockSize*sizeof(float)>>>(tmp, tmp, n);break;
+      case 8:
+        gpu_Reduce7<8><<<1,blockSize,blockSize*sizeof(float)>>>(tmp, tmp, n);break;
+      case 4:
+        gpu_Reduce7<4><<<1,blockSize,blockSize*sizeof(float)>>>(tmp, tmp, n);break;
+      case 2:
+        gpu_Reduce7<2><<<1,blockSize,blockSize*sizeof(float)>>>(tmp, tmp, n);break;
+      case 1:
+        gpu_Reduce7<1><<<1,blockSize,blockSize*sizeof(float)>>>(tmp, tmp, n);break;
+    }
   }
 
   cudaThreadSynchronize();
@@ -397,6 +504,16 @@ int main( int argc, char *argv[] ) {
     while(1) {
         gpu_Heat0<<<Grid,Block>>>(dev_u, dev_uhelp, dev_residuals, np);
         cudaThreadSynchronize();
+        residual = cpu_Reduce(dev_residuals, Block_Dim*Block_Dim, (np-2)*(np-2));
+
+        tmp = dev_u;
+        dev_u = dev_uhelp;
+        dev_uhelp = tmp;
+
+        iter++;
+
+        if (residual < 0.00005) break;
+        if (iter>=param.maxiter) break;
 
         // CPU version
         //cudaMemcpy(param.u, dev_u, size, cudaMemcpyDeviceToHost);
@@ -409,17 +526,7 @@ int main( int argc, char *argv[] ) {
         //float *r = cpu_residual2(param.u, param.uhelp, np, np);
         //cudaMemcpy(dev_residuals, r,(np-2)*(np-2)*sizeof(float), cudaMemcpyHostToDevice);
 
-        residual = cpu_Reduce(dev_residuals, Block_Dim, (np-2)*(np-2));
         //printf("Residual: %f\n", residual);
-
-        tmp = dev_u;
-        dev_u = dev_uhelp;
-        dev_uhelp = tmp;
-
-        iter++;
-
-        if (residual < 0.00005) break;
-        if (iter>=param.maxiter) break;
     }
 
     cudaError_t errSync  = cudaGetLastError();
