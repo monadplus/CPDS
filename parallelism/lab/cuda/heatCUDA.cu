@@ -35,7 +35,7 @@ void write_image( FILE * f, float *u, unsigned sizex, unsigned sizey );
 int coarsen(float *uold, unsigned oldx, unsigned oldy, float *unew, unsigned newx, unsigned newy );
 int coarsen(float *uold, unsigned oldx, unsigned oldy, float *unew, unsigned newx, unsigned newy );
 __global__ void gpu_Heat0 (float *h, float *g, float *i, int N);
-float cpu_Reduce(float *dev_in, int blockSize, int N);
+float cpu_Reduce(float *dev_residuals, int blockSize, int N);
 __global__ void gpu_Reduce0 (float *h, float *g, int N);
 
 // =======================================================
@@ -58,6 +58,34 @@ float cpu_residual (float *u, float *utmp, unsigned sizex, unsigned sizey)
 
     return(sum);
 }
+
+float *cpu_residual2 (float *u, float *utmp, unsigned sizex, unsigned sizey)
+{
+    float diff;
+    float *res = (float *)malloc(sizeof(float)*sizex*sizey);
+
+    for (int i=1; i<sizex-1; i++) {
+      for (int j=1; j<sizey-1; j++) {
+        diff = utmp[i*sizey+j] - u[i*sizey + j];
+        res[(i-1)*(sizex-2) + j - 1] = diff * diff;
+      }
+    }
+
+    return res;
+}
+
+float cpu_residual_print(float *dev, int N) {
+  size_t size = N*N*sizeof(float);
+  float *arr = (float*) malloc(size);
+  cudaMemcpy(arr, dev, size, cudaMemcpyDeviceToHost);
+  float res = 0.0;
+  for(int i = 0; i<N*N; i++){
+    res += arr[i];
+  }
+  printf("CPU Residual %.20f\n", res);
+  return res;
+}
+
 
 float cpu_jacobi (float *u, float *utmp, unsigned sizex, unsigned sizey)
 {
@@ -86,7 +114,7 @@ float cpu_jacobi (float *u, float *utmp, unsigned sizex, unsigned sizey)
 
 /*
  * This only works if:
- *  - dev_in is a CUDA array
+ *  - dev_residuals is a CUDA array
  *  - blockSize is multiple of N
  *  - and N is power of two.
  */
@@ -95,17 +123,17 @@ float cpu_Reduce(float *dev_in, int blockSize, int N)  {
   int blocksPerGrid = std::ceil((1.*n) / blockSize);
   float *dev_out, *tmp;
   cudaMalloc(&dev_out, blocksPerGrid*sizeof(float));
+  //printf("blockSize %d\n", blockSize);
+  //printf("N %d\n", N);
 
   do {
     blocksPerGrid = std::ceil((1.*n) / blockSize);
-    printf("blocksPerGrid = %d\n", blocksPerGrid);
     gpu_Reduce0<<<blocksPerGrid,blockSize,blockSize*sizeof(float)>>>(dev_in, dev_out, n);
     tmp = dev_out; dev_out = dev_in; dev_in = tmp;
     n = blocksPerGrid;
   } while (n > blockSize);
 
   if (n > 1) {
-    printf("n = %d\n", blocksPerGrid);
     gpu_Reduce0<<<1,blockSize,blockSize*sizeof(float)>>>(dev_in, tmp, n);
   }
 
@@ -113,8 +141,38 @@ float cpu_Reduce(float *dev_in, int blockSize, int N)  {
 
   float result;
   cudaMemcpy(&result, tmp, sizeof(float), cudaMemcpyDeviceToHost);
-  cudaFree(dev_out);
+  cudaFree(tmp);
   return result;
+}
+
+void printArray(float *arr, int N) {
+  printf("[");
+  for (unsigned int i=0; i<N; i++)
+    printf(" %.5f ", arr[i]);
+  printf("]\n");
+}
+
+void printMatrix(float *arr, int N) {
+  printf("[");
+  for (unsigned int i=0; i<N; i++)
+    printArray(&arr[i*N], N);
+  printf("]\n");
+}
+
+void printCudaArray(float *dev, int N) {
+  size_t size = N*sizeof(float);
+  float *arr = (float*) malloc(size);
+  cudaMemcpy(arr, dev, size, cudaMemcpyDeviceToHost);
+  printArray(arr, N);
+  free(arr);
+}
+
+void printCudaMatrix(float *dev, int N) {
+  size_t size = N*N*sizeof(float);
+  float *arr = (float*) malloc(size);
+  cudaMemcpy(arr, dev, size, cudaMemcpyDeviceToHost);
+  printMatrix(arr, N);
+  free(arr);
 }
 
 void test_Reduce()
@@ -131,11 +189,11 @@ void test_Reduce()
     expected += f;
   }
 
-  float *dev_in;
-  cudaMalloc(&dev_in, size);
-  cudaMemcpy(dev_in, input, size, cudaMemcpyHostToDevice);
+  float *dev_residuals;
+  cudaMalloc(&dev_residuals, size);
+  cudaMemcpy(dev_residuals, input, size, cudaMemcpyHostToDevice);
 
-  float result = cpu_Reduce(dev_in, blockSize, n);
+  float result = cpu_Reduce(dev_residuals, blockSize, n);
 
   if (result != expected) {
     fprintf(stderr, "Test failed: expected %f but found %f\n", expected, result);
@@ -143,6 +201,34 @@ void test_Reduce()
     fprintf(stderr, "Test succeeded\n");
   }
 
+  exit(-1);
+}
+
+void test_Align()
+{
+  int n = 5;
+  float arr[] = {1.0,2.0,3.0,4.0,5.0
+                ,6.0,7.0,8.0,9.0,10.0
+                ,11.0,12.0,13.0,14.0,15.0
+                ,16.0,17.0,18,19,20
+                ,21,22,23,24,25};
+  float expected[] = { 7 ,8 ,9
+                     , 12,13,14
+                     , 17,18,19
+                     };
+  float *result = (float *)malloc(sizeof(float)*(n-2)*(n-2));
+  for(int i = 1; i < n-1; i++) {
+    for(int j = 1; j < n-1; j++) {
+      result[(i-1)*(n-2) + j - 1] = arr[i*n + j];
+    }
+  }
+  for(int i = 0; i < (n-2)*(n-2); i++) {
+    if (result[i] != expected[i]) {
+      fprintf(stderr, "Test align failed\n");
+      exit(-1);
+    }
+  }
+  fprintf(stderr, "Test align succeeded\n");
   exit(-1);
 }
 
@@ -246,7 +332,6 @@ int main( int argc, char *argv[] ) {
         param.uhelp = tmp;
 
         iter++;
-        //printf("Residual: %10.10f\n", residual);
 
         if (residual < 0.00005) break;
         if (iter>=param.maxiter) break;
@@ -291,25 +376,41 @@ int main( int argc, char *argv[] ) {
     cudaEventRecord( start, 0 );
     cudaEventSynchronize( start );
 
-    float *dev_u, *dev_uhelp, *dev_in, *tmp;
+    float *dev_u, *dev_uhelp, *dev_residuals, *tmp;
     size_t size = np*np*sizeof(float);
 
     cudaMalloc(&dev_u, size);
     cudaMalloc(&dev_uhelp, size);
-    cudaMalloc(&dev_in, size);
+    cudaMalloc(&dev_residuals, param.resolution*param.resolution*sizeof(float));
+
     cudaMemcpy(dev_u, param.u, size, cudaMemcpyHostToDevice);
+    cudaMemcpy(dev_uhelp, param.uhelp, size, cudaMemcpyHostToDevice);
+    // ^^^ This must be done otherwise on the swap some values are not properly initialized...
 
     iter = 0;
     residual = 0.0;
 
-    test_Reduce();
+    // Uncomment to check if the gpu_reduce works properly.
+    //test_Reduce();
+    //test_Align();
 
     while(1) {
-        gpu_Heat0<<<Grid,Block>>>(dev_u, dev_uhelp, dev_in, np);
+        gpu_Heat0<<<Grid,Block>>>(dev_u, dev_uhelp, dev_residuals, np);
         cudaThreadSynchronize();
 
-        residual = cpu_Reduce(dev_in, Block_Dim, np*np);
-        printf("Residual: %10.10f\n", residual);
+        // CPU version
+        //cudaMemcpy(param.u, dev_u, size, cudaMemcpyDeviceToHost);
+        //cudaMemcpy(param.uhelp, dev_uhelp, size, cudaMemcpyDeviceToHost);
+        //residual = cpu_residual(param.u, param.uhelp, np, np);
+
+        // CPU + GPU version
+        //cudaMemcpy(param.u, dev_u, size, cudaMemcpyDeviceToHost);
+        //cudaMemcpy(param.uhelp, dev_uhelp, size, cudaMemcpyDeviceToHost);
+        //float *r = cpu_residual2(param.u, param.uhelp, np, np);
+        //cudaMemcpy(dev_residuals, r,(np-2)*(np-2)*sizeof(float), cudaMemcpyHostToDevice);
+
+        residual = cpu_Reduce(dev_residuals, Block_Dim, (np-2)*(np-2));
+        //printf("Residual: %f\n", residual);
 
         tmp = dev_u;
         dev_u = dev_uhelp;
@@ -331,7 +432,7 @@ int main( int argc, char *argv[] ) {
 
     cudaFree(dev_u);
     cudaFree(dev_uhelp);
-    cudaFree(dev_in);
+    cudaFree(dev_residuals);
 
     cudaEventRecord( stop, 0 );     // instrument code to measue end time
     cudaEventSynchronize( stop );

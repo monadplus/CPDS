@@ -7,16 +7,16 @@ __global__ void gpu_Heat0 (float *dev_u, float *dev_uhelp, float *dev_r, int N) 
   int col = (blockIdx.x * blockDim.x) + threadIdx.x;
   int row = (blockIdx.y * blockDim.y) + threadIdx.y;
 
-  float diff;
+  float diff = 0.0;
 
-  if (row > 0 && row < (N-1) && col > 0 && col < (N-1)) {
+  if (row > 0 && row < N-1 && col > 0 && col < N-1) {
     dev_uhelp[row*N + col] = 0.25 * ( dev_u[row*N + (col-1)]
                                     + dev_u[row*N + (col+1)]
                                     + dev_u[(row-1)*N + col]
                                     + dev_u[(row+1)*N + col]
                                     );
     diff = dev_uhelp[row*N + col] - dev_u[row*N + col];
-    dev_r[row*N + col] = diff * diff;
+    dev_r[(row-1)*(N-2) + col - 1] = diff * diff;
   }
 }
 
