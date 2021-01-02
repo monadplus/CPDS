@@ -1,2 +1,0 @@
-In this case the divide_and_conquer has no sense. It takes (at least) the same 
-time forward the sublist to a sond than compute the max! 

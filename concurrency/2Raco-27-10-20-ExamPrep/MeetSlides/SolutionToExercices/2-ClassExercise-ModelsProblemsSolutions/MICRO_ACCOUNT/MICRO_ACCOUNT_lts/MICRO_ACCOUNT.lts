@@ -1,8 +1,0 @@
-const M=3
-
-MICRO_ACCOUNT = MONEY[0],
-MONEY[i:0..M]=(when i>0 withdrawn->MONEY[i-1]|when i<M deposit ->MONEY[i+1]).
-
-CLIENT=(withdrawn->CLIENT|deposit ->CLIENT).
-
-||BANK=(alice:CLIENT||bob:CLIENT||{alice, bob}::MICRO_ACCOUNT).

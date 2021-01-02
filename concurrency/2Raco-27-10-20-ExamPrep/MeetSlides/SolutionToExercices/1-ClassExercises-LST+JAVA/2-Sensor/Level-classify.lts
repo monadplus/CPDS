@@ -1,7 +1,0 @@
-
-SENSOR = 
-(level[i:0..9]->
-(when ( i>=2 && i<=8) normal->SENSOR
-| when (i<2) low -> SENSOR
-| when (i>8) high -> SENSOR)).
-
