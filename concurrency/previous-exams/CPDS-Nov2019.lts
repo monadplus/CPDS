@@ -1,0 +1,4 @@
+CLIENT = (wallet.authorise -> service.request -> (service.reply -> CLIENT | service.abort -> CLIENT)).
+SERVER = (service.request -> wallet.invoice -> (wallet.confirm -> service.reply -> SERVER|wallet.default -> service.abort -> SERVER)).
+property HONEST = (server.wallet.confirm -> service.reply -> HONEST | server.wallet.default -> service.abort -> HONEST).
+||SES = (client:CLIENT || server:SERVER || HONEST)/{service/{client,server}.service}.
