@@ -84,6 +84,10 @@ double relax_redblack (double *u, unsigned sizex, unsigned sizey)
         // |#| |#| |#| |#| |
         // | |#| |#| |#| |#|
 
+        // Inner loops can be parallelized since they do not have data dependencies.
+        // You can't do both loops in parallel (nowait) since it will change the semantic
+        // of the program where loop1 >> loop2
+
         // Computing "Red" blocks
         #pragma omp for reduction(+:sum)
         for (int ii=0; ii<nbx; ii++) {
@@ -92,9 +96,9 @@ double relax_redblack (double *u, unsigned sizex, unsigned sizey)
                 for (int i=1+ii*bx; i<=min((ii+1)*bx, sizex-2); i++)
                     for (int j=1+jj*by; j<=min((jj+1)*by, sizey-2); j++) {
                         unew= 0.25 * ( u[ i*sizey     + (j-1) ]+  // left
-                                    u[ i*sizey     + (j+1) ]+  // right
-                                    u[ (i-1)*sizey + j     ]+  // top
-                                    u[ (i+1)*sizey + j     ]); // bottom
+                                       u[ i*sizey     + (j+1) ]+  // right
+                                       u[ (i-1)*sizey + j     ]+  // top
+                                       u[ (i+1)*sizey + j     ]); // bottom
                         diff = unew - u[i*sizey+ j];
                         sum += diff * diff;
                         u[i*sizey+j] = unew;
@@ -109,9 +113,9 @@ double relax_redblack (double *u, unsigned sizex, unsigned sizey)
                 for (int i=1+ii*bx; i<=min((ii+1)*bx, sizex-2); i++)
                     for (int j=1+jj*by; j<=min((jj+1)*by, sizey-2); j++) {
                         unew= 0.25 * ( u[ i*sizey     + (j-1) ]+  // left
-                                    u[ i*sizey     + (j+1) ]+  // right
-                                    u[ (i-1)*sizey + j     ]+  // top
-                                    u[ (i+1)*sizey + j     ]); // bottom
+                                       u[ i*sizey     + (j+1) ]+  // right
+                                       u[ (i-1)*sizey + j     ]+  // top
+                                       u[ (i+1)*sizey + j     ]); // bottom
                         diff = unew - u[i*sizey+ j];
                         sum += diff * diff;
                         u[i*sizey+j] = unew;
@@ -127,8 +131,21 @@ double relax_redblack (double *u, unsigned sizex, unsigned sizey)
  */
 double relax_gauss (double *u, unsigned sizex, unsigned sizey)
 {
+
+    //  ___________________
+    // |  1 |  2 |  3 |  4 |
+    // |----+----+----+----|
+    // |  5 |  6 |  7 |  8 |
+    // |----+----+----+----|
+    // |  9 | 10 | 11 | 12 |
+    // |----+----+----+----|
+    // | 13 | 14 | 15 | 16 |
+    //  -------------------
+    //
+    //  Each block depends on the left and top one.
+    //  For example, 6 depends on the completition of 2 and 5.
+
     int n_threads = omp_get_max_threads();
-    // The blocks depends on the left and upper block
     double sums[n_threads][n_threads]; // Dependecy matrix
 
     double unew, diff, sum=0.0;
@@ -151,14 +168,16 @@ double relax_gauss (double *u, unsigned sizex, unsigned sizey)
                         for (int i=1+ii*bx; i<=min((ii+1)*bx, sizex-2); i++) {
                             for (int j=1+jj*by; j<=min((jj+1)*by, sizey-2); j++) {
                                 unew= 0.25 * ( u[ i*sizey     + (j-1) ]+  // left
-                                            u[ i*sizey     + (j+1) ]+  // right
-                                            u[ (i-1)*sizey + j     ]+  // top
-                                            u[ (i+1)*sizey + j     ]); // bottom
+                                               u[ i*sizey     + (j+1) ]+  // right
+                                               u[ (i-1)*sizey + j     ]+  // top
+                                               u[ (i+1)*sizey + j     ]); // bottom
                                 diff = unew - u[i*sizey+ j];
                                 aux_sum += diff * diff;
                                 u[i*sizey+j]=unew;
                             }
                         }
+
+                        // Alternative: make sum shared and access it using atomic
                         sums[ii][jj] = aux_sum;
                     }
                 }

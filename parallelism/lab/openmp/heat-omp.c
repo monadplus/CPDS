@@ -18,7 +18,7 @@
 void usage( char *s )
 {
     fprintf(stderr, 
-	    "Usage: %s <input file> [result file]\n\n", s);
+        "Usage: %s <input file> [result file]\n\n", s);
 }
 
 int main( int argc, char *argv[] )
@@ -37,18 +37,18 @@ int main( int argc, char *argv[] )
     // check arguments
     if( argc < 2 )
     {
-	usage( argv[0] );
-	return 1;
+    usage( argv[0] );
+    return 1;
     }
 
     // check input file
     if( !(infile=fopen(argv[1], "r"))  ) 
     {
-	fprintf(stderr, 
-		"\nError: Cannot open \"%s\" for reading.\n\n", argv[1]);
+    fprintf(stderr,
+        "\nError: Cannot open \"%s\" for reading.\n\n", argv[1]);
       
-	usage(argv[0]);
-	return 1;
+    usage(argv[0]);
+    return 1;
     }
 
     // check result file
@@ -56,28 +56,28 @@ int main( int argc, char *argv[] )
 
     if( !(resfile=fopen(resfilename, "w")) )
     {
-	fprintf(stderr, 
-		"\nError: Cannot open \"%s\" for writing.\n\n", 
-		resfilename);
-	usage(argv[0]);
-	return 1;
+    fprintf(stderr,
+        "\nError: Cannot open \"%s\" for writing.\n\n",
+        resfilename);
+    usage(argv[0]);
+    return 1;
     }
 
     // check input
     if( !read_input(infile, &param) )
     {
-	fprintf(stderr, "\nError: Error parsing input file.\n\n");
-	usage(argv[0]);
-	return 1;
+    fprintf(stderr, "\nError: Error parsing input file.\n\n");
+    usage(argv[0]);
+    return 1;
     }
     print_params(&param);
 
     if( !initialize(&param) )
-	{
-	    fprintf(stderr, "Error in Solver initialization.\n\n");
-	    usage(argv[0]);
+    {
+        fprintf(stderr, "Error in Solver initialization.\n\n");
+        usage(argv[0]);
             return 1;
-	}
+    }
 
     // full size (param.resolution are only the inner points)
     np = param.resolution + 2;
@@ -90,17 +90,17 @@ int main( int argc, char *argv[] )
 
     iter = 0;
     while(1) {
-	switch( param.algorithm ) {
-	    case 0: // JACOBI
-	            residual = relax_jacobi(param.u, param.uhelp, np, np);
-		    // Copy uhelp into u
-		    for (int i=0; i<np; i++)
-    		        for (int j=0; j<np; j++)
-	    		    param.u[ i*np+j ] = param.uhelp[ i*np+j ];
-		    break;
-	    case 1: // RED-BLACK
-		    residual = relax_redblack(param.u, np, np);
-		    break;
+    switch( param.algorithm ) {
+        case 0: // JACOBI
+                residual = relax_jacobi(param.u, param.uhelp, np, np);
+            // Copy uhelp into u
+            for (int i=0; i<np; i++)
+                    for (int j=0; j<np; j++)
+                    param.u[ i*np+j ] = param.uhelp[ i*np+j ];
+            break;
+        case 1: // RED-BLACK
+            residual = relax_redblack(param.u, np, np);
+            break;
 	    case 2: // GAUSS
 		    residual = relax_gauss(param.u, np, np);
 		    break;

@@ -22,7 +22,7 @@ typedef struct
 {
     unsigned maxiter;       // maximum number of iterations
     unsigned resolution;    // spatial resolution
-    int algorithm;          // 0=>Jacobi, 1=>Gauss
+    int algorithm;          // 0=>Jacobi, 1=>Gauss, 2=>Gauss-Seidel
 
     unsigned visres;        // visualization resolution
   
@@ -40,9 +40,9 @@ algoparam_t;
 int initialize( algoparam_t *param );
 int finalize( algoparam_t *param );
 void write_image( FILE * f, double *u,
-		  unsigned sizex, unsigned sizey );
+	      unsigned sizex, unsigned sizey );
 int coarsen(double *uold, unsigned oldx, unsigned oldy ,
-	    double *unew, unsigned newx, unsigned newy );
+        double *unew, unsigned newx, unsigned newy );
 int read_input( FILE *infile, algoparam_t *param );
 void print_params( algoparam_t *param );
 double wtime();
