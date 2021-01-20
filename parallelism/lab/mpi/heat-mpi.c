@@ -10,7 +10,7 @@
 
 void usage( char *s )
 {
-    fprintf(stderr, 
+    fprintf(stderr,
             "Usage: %s <input file> [result file]\n\n", s);
 }
 
@@ -45,9 +45,9 @@ int main( int argc, char *argv[] )
         }
 
         // check input file
-        if( !(infile=fopen(argv[1], "r"))  ) 
+        if( !(infile=fopen(argv[1], "r"))  )
         {
-            fprintf(stderr, 
+            fprintf(stderr,
                     "\nError: Cannot open \"%s\" for reading.\n\n", argv[1]);
 
             usage(argv[0]);
@@ -59,8 +59,8 @@ int main( int argc, char *argv[] )
 
         if( !(resfile=fopen(resfilename, "w")) )
         {
-            fprintf(stderr, 
-                    "\nError: Cannot open \"%s\" for writing.\n\n", 
+            fprintf(stderr,
+                    "\nError: Cannot open \"%s\" for writing.\n\n",
                     resfilename);
             usage(argv[0]);
             return 1;
@@ -151,6 +151,7 @@ int main( int argc, char *argv[] )
 
                     break;
                 case 1: // RED-BLACK
+                    // DO NOT DO
                     residual = relax_redblack(param.u, np_row, np_col);
                     break;
                 case 2: // GAUSS
@@ -166,7 +167,7 @@ int main( int argc, char *argv[] )
             iter++;
 
             MPI_Allreduce(&residual, &global_residual, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-            
+
             // solution good enough ?
             if (global_residual < 0.00005) break;
 
@@ -194,7 +195,7 @@ int main( int argc, char *argv[] )
         runtime = wtime() - runtime;
 
         fprintf(stdout, "Time: %04.3f ", runtime);
-        fprintf(stdout, "(%3.3f GFlop => %6.2f MFlop/s)\n", 
+        fprintf(stdout, "(%3.3f GFlop => %6.2f MFlop/s)\n",
                 flop/1000000000.0,
                 flop/runtime/1000000);
         fprintf(stdout, "Convergence to residual=%f: %d iterations\n", residual, iter);
@@ -203,8 +204,8 @@ int main( int argc, char *argv[] )
         coarsen( param.u, np, np,
                 param.uvis, param.visres+2, param.visres+2 );
 
-        write_image( resfile, param.uvis,  
-                param.visres+2, 
+        write_image( resfile, param.uvis,
+                param.visres+2,
                 param.visres+2 );
 
         finalize( &param );
@@ -270,7 +271,7 @@ int main( int argc, char *argv[] )
                     break;
                 case 2: // GAUSS
                     residual = relax_gauss(u, rows, cols);
-                    
+
                     /* Send/Receive bottom boundary from next process (myid > 0) */
                     MPI_Ssend(&u[cols], cols, MPI_DOUBLE, myid-1, 0, MPI_COMM_WORLD);
                     if (myid < numprocs - 1)

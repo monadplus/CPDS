@@ -311,6 +311,7 @@ void test_Reduce()
   exit(-1);
 }
 
+// ignore
 void test_Align()
 {
   int n = 5;
